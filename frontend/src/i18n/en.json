@@ -1,0 +1,11 @@
+{
+  "home": "Home",
+  "login": "Login",
+  "logout": "Logout",
+  "dashboard": "Dashboard",
+  "issues": "Issues",
+  "news": "News",
+  "move_requests": "Move Requests",
+  "submit": "Submit",
+  "cancel": "Cancel"
+}
