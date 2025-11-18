@@ -3,10 +3,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Unit = require('../models/Unit');
+const crypto = require('crypto');
 const { isValidObjectId } = require('mongoose');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'MiladFarzamYasiBerfi123BOZORG123!!';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
 
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET is not set. A random secret was generated for this process; restart will invalidate existing tokens.');
+}
 // Helper: ساخت شماره یونیت یکتا
 function generateUnitNumberForUser(user) {
   return `UN-${user._id.toString().slice(-6).toUpperCase()}`;

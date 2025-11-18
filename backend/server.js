@@ -14,8 +14,60 @@ const app = express();
 
 // Disable etags to avoid 304 responses with empty bodies that break cached fetches
 app.set('etag', false);
+app.disable('x-powered-by');
 
-app.use(cors({ origin: true, credentials: true }));
+// --- Security headers (lightweight helmet alternative without new deps) ---
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+// --- Basic rate limiter to slow brute-force attempts ---
+const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_MAX = 400; // requests per window per IP
+const rateStore = new Map();
+
+app.use((req, res, next) => {
+  const now = Date.now();
+  const key = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const current = rateStore.get(key) || { count: 0, reset: now + RATE_WINDOW_MS };
+
+  if (now > current.reset) {
+    current.count = 0;
+    current.reset = now + RATE_WINDOW_MS;
+  }
+
+  current.count += 1;
+  rateStore.set(key, current);
+
+  if (current.count > RATE_MAX) {
+    return res.status(429).json({ error: 'Too many requests, please try again later.' });
+  }
+
+  next();
+});
+
+// --- CORS allowlist ---
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow server-to-server or curl
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
