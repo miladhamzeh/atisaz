@@ -1,6 +1,7 @@
 // controllers/userController.js
 const User = require('../models/User');
 const Unit = require('../models/Unit');
+const { normalizeObjectId } = require('../utils/objectId');
 
 let Ticket, Charge, Payment;
 try { Ticket = require('../models/Ticket'); } catch {}
@@ -130,8 +131,9 @@ exports.getSummary = async (req, res) => {
       return res.json({ totalUsers, totalUnits, openTickets, unpaidCharges, totalPayments });
     }
 
-    const myUnit = req.user.unit ? await Unit.findById(req.user.unit).select('number') : null;
-    const unpaidCharges = Charge ? await Charge.countDocuments({ unit: req.user.unit, paid: false }) : 0;
+    const unitId = normalizeObjectId(req.user.unit);
+    const myUnit = unitId ? await Unit.findById(unitId).select('number') : null;
+    const unpaidCharges = unitId && Charge ? await Charge.countDocuments({ unit: unitId, paid: false }) : 0;
     const totalPaymentsByUser = Payment
       ? await Payment.aggregate([
           { $match: { user: req.user._id } },

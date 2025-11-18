@@ -1,6 +1,7 @@
 // controllers/ticketController.js
 const Ticket = require('../models/Ticket');
 const Notification = require('../models/Notification');
+const { normalizeObjectId } = require('../utils/objectId');
 
 // POST /api/tickets
 exports.createTicket = async (req, res) => {
@@ -8,10 +9,11 @@ exports.createTicket = async (req, res) => {
     const { subject, unitId, assignedToUser, assignedToRole } = req.body;
     if (!subject) return res.status(400).json({ error: 'Subject is required' });
 
+    const normalizedUnit = normalizeObjectId(unitId) || normalizeObjectId(req.user.unit);
     const ticket = await Ticket.create({
       subject,
       createdBy: req.user.id,
-      unit: unitId || req.user.unit,
+      unit: normalizedUnit,
       assignedToUser,
       assignedToRole
     });
@@ -31,8 +33,9 @@ exports.createTicket = async (req, res) => {
     }
 
     await ticket.populate([
-      { path: 'createdBy', select: 'name email role' },
-      { path: 'assignedToUser', select: 'name email role' },
+      { path: 'createdBy', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
+      { path: 'unit', select: 'number' },
+      { path: 'messages.sender', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
     ]);
 
     res.status(201).json(ticket);
@@ -67,7 +70,12 @@ exports.addTicketMessage = async (req, res) => {
       });
     }
 
-    await t.populate('createdBy assignedToUser messages.sender', 'name email role');
+    await t.populate([
+      { path: 'createdBy', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
+      { path: 'assignedToUser', select: 'name email role' },
+      { path: 'messages.sender', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
+      { path: 'unit', select: 'number' },
+    ]);
     res.json(t);
   } catch (err) {
     console.error(err);
@@ -90,7 +98,12 @@ exports.getTickets = async (req, res) => {
 
     const tickets = await Ticket.find(query)
       .sort({ createdAt: -1 })
-      .populate('createdBy assignedToUser messages.sender', 'name email role');
+      .populate([
+        { path: 'createdBy', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
+        { path: 'assignedToUser', select: 'name email role' },
+        { path: 'messages.sender', select: 'name email role unit', populate: { path: 'unit', select: 'number' } },
+        { path: 'unit', select: 'number' },
+      ]);
 
     res.json(tickets);
   } catch (err) {

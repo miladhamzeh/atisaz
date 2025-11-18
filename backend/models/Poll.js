@@ -20,7 +20,8 @@ const PollSchema = new mongoose.Schema({
   startAt: { type: Date },
   endAt: { type: Date },
   allowMultiple: { type: Boolean, default: false },
-  visible: { type: Boolean, default: true }
+  visible: { type: Boolean, default: true },
+  newsPublished: { type: Boolean, default: false }
 }, { timestamps: true });
 
 PollSchema.index({ endAt: 1 });

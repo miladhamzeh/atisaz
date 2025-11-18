@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply min-h-screen;
+  font-family: "Inter", "Vazirmatn", system-ui, -apple-system, sans-serif;
+  direction: rtl;
+  text-align: right;
+  color: #0f172a;
+  background: radial-gradient(circle at 15% 20%, rgba(79, 70, 229, 0.22), transparent 32%),
+  radial-gradient(circle at 85% 10%, rgba(14, 165, 233, 0.2), transparent 30%),
+  radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.22), transparent 30%),
+  linear-gradient(140deg, #0b1224 0%, #0f172a 40%, #0b1224 100%);
+}
+
+#root {
+min-height: 100vh;
+}
+
+a {
+ @apply text-indigo-600 hover:text-indigo-700;
+}
+
+::-webkit-scrollbar {
+ width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+ background: linear-gradient(180deg, #4f46e5, #7c3aed);
+ border-radius: 9999px;
+}
+
+.animate-float {
+ animation: float 18s ease-in-out infinite;
+}
+
+.animate-float-slow {
+ animation: float 24s ease-in-out infinite;
+}
+
+@keyframes float {
+ 0%, 100% {
+   transform: translateY(0px) rotate(0deg);
+ }
+ 50% {
+   transform: translateY(-16px) rotate(2deg);
+ }
+}

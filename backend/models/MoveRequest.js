@@ -1,7 +1,7 @@
 // models/MoveRequest.js
 const mongoose = require('mongoose');
 
-const statuses = ['pending','approved','denied','cancelled'];
+const statuses = ['pending','approved','denied','cancelled' ,'scheduled'];
 
 const MoveRequestSchema = new mongoose.Schema({
   unit: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit', required: true },

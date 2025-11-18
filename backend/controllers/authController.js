@@ -3,12 +3,19 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Unit = require('../models/Unit');
+const { isValidObjectId } = require('mongoose');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'MiladFarzamYasiBerfi123BOZORG123!!';
 
 // Helper: ساخت شماره یونیت یکتا
 function generateUnitNumberForUser(user) {
   return `UN-${user._id.toString().slice(-6).toUpperCase()}`;
+}
+function normalizeUnitId(raw) {
+  if (!raw) return undefined;
+  if (typeof raw === 'string' && isValidObjectId(raw)) return raw;
+  if (typeof raw === 'object' && raw._id && isValidObjectId(raw._id)) return raw._id;
+  return undefined;
 }
 
 exports.register = async (req, res) => {
@@ -28,16 +35,19 @@ exports.register = async (req, res) => {
       password, // pre-save hook هش می‌کند
       role: role || "user",
       phone,
-      unit: unit || undefined,
+      unit: normalizeUnitId(unit) || undefined,
     });
+
+    let linkedUnitDoc = null;
 
     // 2) سناریوهای ایجاد/اتصال یونیت
     if (unitNumber && !user.unit) {
       // اگر unitNumber فرستاده شده بود، تلاش کن همان را پیدا/بساز
-      let u = await Unit.findOne({ number: unitNumber.trim() });
+      const normalized = unitNumber.trim();
+        let u = await Unit.findOne({ number: normalized });
       if (!u) {
         u = await Unit.create({
-          number: unitNumber.trim(),
+          number: normalized,
           owner: user._id,
           occupants: [user._id],
         });
@@ -46,6 +56,7 @@ exports.register = async (req, res) => {
         await u.save();
       }
       user.unit = u._id;
+      linkedUnitDoc = u;
       await user.save();
     } else if (!user.unit) {
       // یونیت از قبل داده نشده؛ خودمان بسازیم
@@ -56,6 +67,7 @@ exports.register = async (req, res) => {
         occupants: [user._id],
       });
       user.unit = u._id;
+      linkedUnitDoc = u;
       await user.save();
     } else {
       // اگر unit صراحتاً داده بودی، کاربر را به occupants اضافه کن
@@ -64,15 +76,19 @@ exports.register = async (req, res) => {
         u.occupants.push(user._id);
         await u.save();
       }
+      linkedUnitDoc = u;
     }
 
     // 3) توکن
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
 
+    // let linkedUnit = null;
+    if (user.unit) linkedUnit = await Unit.findById(user.unit);
+
     res.status(201).json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role, unit: user.unit },
-      token,
-    });
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, unit: user.unit, unitNumber: linkedUnitDoc?.number },
+  token,
+  });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: "Server error" });
@@ -92,10 +108,16 @@ exports.login = async (req, res) => {
 
     // ✅ همان Secret واحد
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-
+    let linkedUnitDoc = null;
+    if (user.unit) {
+       const rawUnitId = typeof user.unit === 'object' && user.unit._id ? user.unit._id : user.unit;
+       if (isValidObjectId(rawUnitId)) {
+         linkedUnitDoc = await Unit.findById(rawUnitId);
+       }
+     }
     res.json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role, unit: user.unit }
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, unit: user.unit, unitNumber: linkedUnitDoc?.number }
     });
   } catch (err) {
     console.error('Login error:', err);

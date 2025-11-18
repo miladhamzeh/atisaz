@@ -15,6 +15,10 @@ router.get('/', getAllMoves);
 // تایید/رد توسط حسابدار یا ادمین
 router.put('/:id/approve', requireRole('accountant','admin'), approveMove);
 router.put('/:id/deny', requireRole('accountant','admin'), denyMove);
+router.patch('/:id', requireRole('accountant','admin'), (req, res) => {
+  // به‌منظور سازگاری با فرانت، action از بادی خوانده می‌شود
+  return require('../controllers/moveRequestController').process(req, res);
+});
 // router.patch('/:id/status', protect, authorize('admin', 'secretary'), updateStatus);
 
 module.exports = router;

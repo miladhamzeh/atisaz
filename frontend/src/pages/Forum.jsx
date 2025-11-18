@@ -1,7 +1,7 @@
 // src/pages/Forum.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
-import Header from '../components/Header';
+import AppShell from '../components/AppShell';
 
 export default function Forum() {
   const [posts, setPosts] = useState([]);
@@ -24,39 +24,34 @@ export default function Forum() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Community Forum</h2>
-        <div className="bg-white p-4 rounded shadow mb-6">
-          <form onSubmit={create} className="space-y-3">
-            <input className="w-full p-2 border rounded" placeholder="Title (optional)" value={title} onChange={e=>setTitle(e.target.value)} />
-            <textarea className="w-full p-2 border rounded" placeholder="Share something..." value={body} onChange={e=>setBody(e.target.value)} />
-            <button className="bg-blue-600 text-white px-4 py-2 rounded">Post</button>
-          </form>
-        </div>
-
-        <div className="space-y-4">
-          {posts.map(p => (
-            <div key={p._id} className="bg-white p-4 rounded shadow">
-              <div className="font-semibold">{p.title || 'Untitled'}</div>
-              <div className="text-sm text-gray-500">by {p.author?.name} — {new Date(p.createdAt).toLocaleString()}</div>
-              <p className="mt-2">{p.body}</p>
-              <div className="mt-3">
-                <b>Comments</b>
-                <div className="space-y-1 mt-1">
-                  {p.comments.map((c,i)=>(
-                    <div key={i} className="text-sm"><b>{c.author?.name || 'User'}:</b> {c.message}</div>
-                  ))}
-                </div>
-                <CommentBox onSend={(msg)=>comment(p._id, msg)} />
-              </div>
-            </div>
-          ))}
-          {posts.length === 0 && <p className="text-gray-500">No posts</p>}
-        </div>
+    <AppShell title="فروم ساکنین" subtitle="گفتگو و تبادل نظر بین همسایه‌ها">
+      <div className="bg-white/80 backdrop-blur border border-slate-100 rounded-2xl shadow p-5 mb-6">
+        <form onSubmit={create} className="space-y-3">
+          <input className="w-full p-3 border rounded-lg border-slate-200" placeholder="عنوان (اختیاری)" value={title} onChange={e=>setTitle(e.target.value)} />
+          <textarea className="w-full p-3 border rounded-lg border-slate-200" placeholder="پیام خود را بنویسید" value={body} onChange={e=>setBody(e.target.value)} />
+          <button className="bg-indigo-600 text-white px-4 py-3 rounded-lg font-semibold">ارسال</button>
+        </form>
       </div>
-    </div>
+      <div className="space-y-4">
+       {posts.map(p => (
+         <div key={p._id} className="bg-white/80 backdrop-blur border border-slate-100 rounded-2xl shadow p-5">
+           <div className="font-semibold text-slate-800">{p.title || 'بدون عنوان'}</div>
+           <div className="text-sm text-gray-500">{p.author?.name} — {new Date(p.createdAt).toLocaleString()}</div>
+           <p className="mt-2 text-slate-700">{p.body}</p>
+           <div className="mt-3">
+             <b>نظرات</b>
+             <div className="space-y-1 mt-1">
+               {p.comments.map((c,i)=>(
+                 <div key={i} className="text-sm bg-slate-50 border border-slate-100 rounded-lg p-2"><b>{c.author?.name || 'User'}:</b> {c.message}</div>
+               ))}
+             </div>
+             <CommentBox onSend={(msg)=>comment(p._id, msg)} />
+           </div>
+           </div>
+       ))}
+       {posts.length === 0 && <p className="text-gray-500">پستی وجود ندارد.</p>}
+       </div>
+    </AppShell>
   );
 }
 

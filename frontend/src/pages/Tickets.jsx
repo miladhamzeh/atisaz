@@ -1,7 +1,7 @@
 // src/pages/Tickets.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
-import Header from '../components/Header';
+import AppShell from '../components/AppShell';
 
 const roles = ['admin','secretary','accountant','facilities','lobbyman','security'];
 
@@ -27,53 +27,61 @@ export default function Tickets() {
     setReply(prev => ({ ...prev, [id]: '' }));
     await fetchTickets();
   };
+  const unitLabel = (u) => u?.number ? `واحد ${u.number}` : 'واحد نامشخص';
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Header />
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Tickets & Messages</h2>
-        <div className="bg-white p-4 rounded shadow mb-6">
-          <form onSubmit={create} className="flex gap-3 items-end">
-            <input className="p-2 border rounded flex-1" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Subject" />
-            <select className="p-2 border rounded" value={assignedToRole} onChange={e=>setAssignedToRole(e.target.value)}>
-              {roles.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
-          </form>
-        </div>
-
-        <div className="space-y-4">
-          {tickets.map(t => (
-            <div key={t._id} className="bg-white p-4 rounded shadow">
-              <div className="font-semibold">
-                {t.subject} <span className="text-xs text-gray-500">({t.status})</span>
-              </div>
-              <div className="text-sm text-gray-500">
-                To: {t.assignedToUser?.name || t.assignedToRole || '—'}
-              </div>
-              <div className="mt-2 space-y-1">
-                {t.messages.map((m,i) => (
-                  <div key={i} className="text-sm">
-                    <b>{m.sender?.name || m.role || 'User'}:</b> {m.message}{' '}
-                    <span className="text-xs text-gray-500">({new Date(m.createdAt).toLocaleString()})</span>
-                  </div>
-                ))}
-                <div className="flex gap-2 mt-2">
-                  <input
-                    className="flex-1 p-2 border rounded"
-                    value={reply[t._id] || ''}
-                    onChange={e=>setReply(prev=>({ ...prev, [t._id]: e.target.value }))}
-                    placeholder="Reply..."
-                  />
-                  <button className="bg-blue-600 text-white px-3 rounded" onClick={() => sendReply(t._id)}>Send</button>
+    <AppShell title="تیکت و پیام" subtitle="ارتباط مستقیم با منشی، حسابدار، فنی و نگهبانی">
+       <div className="bg-white/80 backdrop-blur border border-slate-100 rounded-2xl shadow p-5 mb-6">
+         <form onSubmit={create} className="flex flex-col md:flex-row gap-3 items-stretch md:items-end">
+           <input className="p-3 border rounded-lg border-slate-200 flex-1" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="موضوع پیام" />
+           <select className="p-3 border rounded-lg border-slate-200" value={assignedToRole} onChange={e=>setAssignedToRole(e.target.value)}>
+             {roles.map(r => <option key={r} value={r}>{r}</option>)}
+           </select>
+           <button className="bg-indigo-600 text-white px-5 py-3 rounded-lg font-semibold">ارسال</button>
+         </form>
+       </div>
+       <div className="space-y-4">
+     {tickets.map(t => (
+       <div key={t._id} className="bg-white/80 backdrop-blur border border-slate-100 rounded-2xl shadow p-5">
+         <div className="font-semibold text-slate-800">
+           {t.subject} <span className="text-xs text-gray-500">({t.status})</span>
+         </div>
+         <div className="text-sm text-gray-600 flex flex-wrap gap-3 mt-1">
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded-full text-xs">
+                ارسال‌کننده: <strong>{t.createdBy?.name || '—'}</strong>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded-full text-xs">
+                {unitLabel(t.createdBy?.unit || t.unit)}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
+                گیرنده: {t.assignedToUser?.name || t.assignedToRole || '—'}
+              </span>
+         </div>
+         <div className="mt-2 space-y-2">
+           {t.messages.map((m,i) => (
+             <div key={i} className="text-sm bg-slate-50 border border-slate-100 rounded-lg p-2">
+             <div className="flex flex-wrap gap-2 items-center mb-1 text-xs text-slate-600">
+                  <span className="font-semibold text-slate-800">{m.sender?.name || m.role || 'User'}</span>
+                  <span className="px-2 py-0.5 bg-slate-200 rounded-full">{unitLabel(m.sender?.unit || t.unit)}</span>
+                  <span className="text-gray-500">{new Date(m.createdAt).toLocaleString()}</span>
                 </div>
-              </div>
-            </div>
-          ))}
-          {tickets.length === 0 && <p className="text-gray-500">No tickets</p>}
+                <div>{m.message}</div>
+             </div>
+           ))}
+        <div className="flex gap-2 mt-2">
+          <input
+            className="flex-1 p-3 border rounded-lg border-slate-200"
+            value={reply[t._id] || ''}
+            onChange={e=>setReply(prev=>({ ...prev, [t._id]: e.target.value }))}
+            placeholder="پاسخ..."
+          />
+          <button className="bg-indigo-600 text-white px-4 rounded-lg" onClick={() => sendReply(t._id)}>ارسال</button>
         </div>
       </div>
-    </div>
+      </div>
+        ))}
+        {tickets.length === 0 && <p className="text-gray-500">تیکتی وجود ندارد.</p>}
+      </div>
+      </AppShell>
   );
 }

@@ -2,6 +2,8 @@
 const DataCorrectionRequest = require('../models/DataCorrectionRequest');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { normalizeObjectId } = require('../utils/objectId');
+const { ensureUnitForUser } = require('../utils/unitHelper');
 
 // POST /api/data-corrections
 exports.submitCorrection = async (req, res) => {
@@ -9,9 +11,11 @@ exports.submitCorrection = async (req, res) => {
     const { message, proposedChanges, files } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
+    const normalizedUnit = await ensureUnitForUser(req.user);
+
     const doc = await DataCorrectionRequest.create({
       user: req.user.id,
-      unit: req.user.unit || null,
+      unit: normalizedUnit || null,
       message,
       proposedChanges,
       files
@@ -34,14 +38,19 @@ exports.submitCorrection = async (req, res) => {
 exports.getCorrections = async (req, res) => {
   try {
     let query = {};
-    if (req.user.role === 'secretary')      query.status = { $in: ['pending'] };
-    else if (req.user.role === 'admin')     query.status = { $in: ['sent_to_admin'] };
-    else                                    query.user   = req.user.id;
+    if (req.user.role === 'secretary') {
+      query.status = { $in: ['pending', 'sent_to_admin', 'approved', 'denied'] };
+    } else if (req.user.role === 'admin') {
+      query.status = { $in: ['sent_to_admin', 'approved', 'denied'] };
+    } else {
+      query.user = req.user.id;
+    }
+    query.user   = req.user.id;
 
     const docs = await DataCorrectionRequest.find(query)
       .sort({ createdAt: -1 })
       .populate('user', 'name email role')
-      .populate('unit', 'number');
+      .populate('unit', 'number name');
 
     res.json(docs);
   } catch (err) {

@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 5001;
 
 const app = express();
 
+// Disable etags to avoid 304 responses with empty bodies that break cached fetches
+app.set('etag', false);
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

@@ -1,22 +1,26 @@
 // controllers/renovationController.js
 const RenovationRequest = require('../models/RenovationRequest');
 const Notification = require('../models/Notification');
-
+const { normalizeObjectId } = require('../utils/objectId');
+const { ensureUnitForUser } = require('../utils/unitHelper');
 // POST /api/renovations
 exports.requestRenovation = async (req, res) => {
   try {
     const { unitId: bodyUnitId, description, desiredStart, desiredEnd, attachments } = req.body;
-    const usedUnitId = bodyUnitId || req.user.unit;
+    const normalizedUnit = normalizeObjectId(bodyUnitId) || await ensureUnitForUser(req.user);
 
     if (req.user.role === 'user') {
-      if (!usedUnitId) return res.status(400).json({ error: 'No unit assigned to your account. Please contact the secretary.' });
-      if (req.user.unit && usedUnitId?.toString() !== req.user.unit.toString()) {
+        if (!normalizedUnit) return res.status(400).json({ error: 'واحدی متعلق به اکانت شما یافت نشد. با منشی تماس بگیرید.' });
+      const myUnit = normalizeObjectId(req.user.unit);
+      if (!myUnit) return res.status(400).json({ error: 'Unit missing from your profile' });
+      if (normalizedUnit?.toString() !== myUnit.toString()) {
         return res.status(403).json({ error: 'Forbidden: You can only submit for your own unit.' });
       }
     }
+    if (!normalizedUnit) return res.status(400).json({ error: 'Unit is required to submit a renovation request' });
 
     const rr = await RenovationRequest.create({
-      unit: usedUnitId,
+      unit: normalizedUnit,
       applicant: req.user.id,
       description,
       desiredStart,
@@ -28,7 +32,7 @@ exports.requestRenovation = async (req, res) => {
     await Notification.create({
       roleRecipients: ['secretary','accountant'],
       title: 'New renovation request',
-      message: `Unit ${usedUnitId} submitted a renovation request.`
+      message: `Unit ${normalizedUnit} submitted a renovation request.`
     });
 
     res.status(201).json(rr);

@@ -3,22 +3,27 @@ const MoveRequest = require('../models/MoveRequest');
 const Notification = require('../models/Notification');
 const Charge = require('../models/Charge');
 const Payment = require('../models/Payment');
+const { normalizeObjectId } = require('../utils/objectId');
 
 // POST /api/moves — کاربر فقط برای یونیت خودش می‌تواند ثبت کند (unitId اختیاری)
 exports.requestMove = async (req, res) => {
   try {
     const { unitId, type, scheduledDate, reason } = req.body;
-    const usedUnitId = unitId || req.user.unit;
+    const usedUnitId = normalizeObjectId(unitId) || normalizeObjectId(req.user.unit);
 
     if (req.user.role === 'user') {
       if (!usedUnitId) {
         return res.status(400).json({ error: 'No unit assigned to your account. Please contact the secretary.' });
       }
-      if (req.user.unit && usedUnitId.toString() !== req.user.unit.toString()) {
+      const myUnit = normalizeObjectId(req.user.unit);
+      if (!myUnit) return res.status(400).json({ error: 'Unit missing from your profile' });
+      if (usedUnitId.toString() !== myUnit.toString()) {
         return res.status(403).json({ error: 'Forbidden: You can only submit for your own unit.' });
       }
     }
-
+    if (!usedUnitId) {
+       return res.status(400).json({ error: 'Unit is required to submit a move request' });
+     }
     // محاسبهٔ بدهی لحظه‌ای
     const charges = await Charge.find({ unit: usedUnitId, paid: false });
     const totalDue = charges.reduce((s, c) => s + c.amount, 0);
@@ -47,18 +52,25 @@ exports.process = async (req, res) => {
   try {
     if (!['accountant','admin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     const { id } = req.params;
-    const { action, note } = req.body;
+    const rawAction = (req.body && (req.body.action || req.body.status)) || '';
+    const action = String(rawAction).toLowerCase();
+    const { note } = req.body || {};
     const mr = await MoveRequest.findById(id).populate('unit');
     if (!mr) return res.status(404).json({ error: 'Not found' });
 
-    if (action === 'approve') {
+    if (action === 'approve' || action === 'approved') {
       if (mr.assessedDebt > 0) {
         return res.status(400).json({ error: `Outstanding debt (${mr.assessedDebt}) must be settled before approval.` });
       }
       mr.status = 'approved';
     } else if (action === 'deny') {
       mr.status = 'denied';
-    } else {
+    } else if (['cancelled','cancel'].includes(action)) {
+     mr.status = 'cancelled';
+   } else if (['pending','review','scheduled'].includes(action)) {
+     // "scheduled" maps to the intermediate waiting state until an approval decision is made
+      mr.status = action;
+    }else {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
@@ -117,5 +129,11 @@ exports.updateStatus = async (req, res) => {
 };
 
 
-exports.approveMove = async (req, res) => { req.body.action = 'approve'; return exports.process(req, res); };
-exports.denyMove   = async (req, res) => { req.body.action = 'deny';    return exports.process(req, res); };
+exports.approveMove = async (req, res) => {
+  req.body = { ...(req.body || {}), action: 'approve' };
+  return exports.process(req, res);
+};
+exports.denyMove   = async (req, res) => {
+  req.body = { ...(req.body || {}), action: 'deny' };
+  return exports.process(req, res);
+};

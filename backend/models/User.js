@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema({
     default: 'user'
   },
   roleLabel: { type: String },
-  unit: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
+  unit: { type: String, ref: 'Unit' },
   phone: String,
   address: String,
   isActive: { type: Boolean, default: true }

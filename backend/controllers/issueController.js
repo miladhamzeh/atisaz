@@ -1,16 +1,18 @@
 // controllers/issueController.js
 const Issue = require('../models/Issue');
 const Notification = require('../models/Notification');
+const { normalizeObjectId } = require('../utils/objectId');
 
 // POST /api/issues
 exports.reportIssue = async (req, res) => {
   try {
     const { unitId, title, description, category, attachments } = req.body;
-    const usedUnitId = unitId || req.user.unit;
+    const usedUnitId = normalizeObjectId(unitId) || normalizeObjectId(req.user.unit);
 
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
-    if (req.user.role === 'user' && req.user.unit && usedUnitId?.toString() !== req.user.unit.toString()) {
+    const myUnit = normalizeObjectId(req.user.unit);
+    if (req.user.role === 'user' && myUnit && usedUnitId?.toString() !== myUnit.toString()) {
       return res.status(403).json({ error: 'Forbidden: You can only report for your own unit.' });
     }
 
@@ -67,7 +69,8 @@ exports.getIssues = async (req, res) => {
     const query = (req.user.role === 'user') ? { reportedBy: req.user.id } : {};
     const issues = await Issue.find(query)
       .sort({ createdAt: -1 })
-      .populate('reportedBy assignedTo comments.author', 'name email role');
+      .populate('reportedBy assignedTo comments.author', 'name email role unit unitName')
+      .populate('unit', 'number building floor');
     res.json(issues);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

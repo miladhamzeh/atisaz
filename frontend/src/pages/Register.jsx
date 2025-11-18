@@ -3,6 +3,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { motion } from "framer-motion";
+import { User, Mail, Lock, Home } from "lucide-react";
+import AuthLayout from "../components/AuthLayout";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -47,74 +50,66 @@ const Register = () => {
       setError(err.response?.data?.error || "Registration failed. Please try again.");
     }
   };
+  const inputClass =
+"w-full border border-white/40 bg-white/90 text-right text-slate-800 placeholder:text-slate-400 rounded-xl pl-3 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/70 focus:border-indigo-400 shadow-sm";
+
+const renderInput = (name, placeholder, type = "text", Icon) => (
+  <label className="relative block text-right" key={name}>
+      <span className="absolute inset-y-0 right-3 flex items-center text-slate-500">
+      <Icon size={18} />
+    </span>
+    <input
+      type={type}
+      name={name}
+      placeholder={placeholder}
+      value={form[name]}
+      onChange={handleChange}
+      className={inputClass}
+      required={name !== "unitNumber"}
+      autoComplete={name}
+    />
+  </label>
+);
+
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md w-80">
-        <h2 className="text-2xl font-semibold text-center mb-4">Register</h2>
+    <AuthLayout title="ثبت‌نام در سامانه" subtitle="حساب کاربری خود را بسازید تا به خدمات آتیساز دسترسی داشته باشید.">
+     <motion.form
+       onSubmit={handleSubmit}
+       initial={{ opacity: 0, y: 10 }}
+       animate={{ opacity: 1, y: 0 }}
+       transition={{ duration: 0.45, ease: "easeOut" }}
+       className="space-y-5"
+     >
+       <div className="space-y-1">
+         <h2 className="text-2xl font-semibold text-slate-900">ایجاد حساب جدید</h2>
+         <p className="text-sm text-slate-500">اطلاعات خود را وارد کنید تا در شهرک ثبت‌نام شوید.</p>
+       </div>
 
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+       {error && <p className="text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
 
-        <input
-          type="text"
-          name="name"
-          placeholder="Full Name"
-          value={form.name}
-          onChange={handleChange}
-          className="w-full border rounded p-2 mb-3"
-          required
-        />
+       <div className="space-y-3">
+         {renderInput("name", "نام و نام خانوادگی", "text", User)}
+         {renderInput("email", "ایمیل", "email", Mail)}
+         {renderInput("password", "رمز عبور", "password", Lock)}
+         {renderInput("confirmPassword", "تکرار رمز عبور", "password", Lock)}
+         {renderInput("unitNumber", "شماره یا نام واحد (مثلاً A-101)", "text", Home)}
+       </div>
 
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border rounded p-2 mb-3"
-          required
-        />
-
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border rounded p-2 mb-3"
-          required
-        />
-
-        <input
-          type="password"
-          name="confirmPassword"
-          placeholder="Confirm Password"
-          value={form.confirmPassword}
-          onChange={handleChange}
-          className="w-full border rounded p-2 mb-3"
-          required
-        />
-
-        {/* ✅ فیلد شمارهٔ واحد */}
-        <input
-          type="text"
-          name="unitNumber"
-          placeholder="Unit Number (e.g. A-101)"
-          value={form.unitNumber}
-          onChange={handleChange}
-          className="w-full border rounded p-2 mb-3"
-        />
-
-        <button type="submit" className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
-          Register
+       <button
+         type="submit"
+         className="w-full bg-gradient-to-r from-emerald-500 via-indigo-500 to-purple-600 text-white py-3 rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:via-indigo-600 transition"
+       >
+         ثبت‌نام و ورود
         </button>
-
-        <p className="text-sm text-center mt-3">
-          Already have an account?{" "}
-          <Link to="/login" className="text-blue-600">Login</Link>
-        </p>
-      </form>
-    </div>
+        <p className="text-sm text-center text-slate-500">
+        قبلاً حساب ساخته‌اید؟{" "}
+        <Link to="/login" className="text-indigo-600 font-semibold">
+          وارد شوید
+        </Link>
+      </p>
+    </motion.form>
+   </AuthLayout>
   );
 };
 

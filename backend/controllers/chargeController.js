@@ -4,20 +4,35 @@ const BulkCharge = require('../models/BulkCharge');
 const Unit = require('../models/Unit');
 const Notification = require('../models/Notification');
 const xlsx = require('xlsx');
+const { normalizeObjectId } = require('../utils/objectId');
+
+const mapChargeType = (rawType) => {
+  const value = String(rawType || '').toLowerCase();
+  if (['جاری', 'current', 'operational', 'maintenance', 'regular', 'regular_maintenance'].includes(value)) {
+    return 'regular_maintenance';
+  }
+  if (['عمرانی', 'capital', 'construction', 'reserve', 'capital_reserve'].includes(value)) {
+    return 'capital_reserve';
+  }
+  return 'other';
+};
 
 exports.createCharge = async (req, res) => {
   try {
     if (!['accountant','admin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     const { unitId, description, amount, type, dueDate } = req.body;
-
-    const unit = await Unit.findById(unitId);
+    const normalizedUnitId = normalizeObjectId(unitId);
+    if (!normalizedUnitId) return res.status(400).json({ error: 'Invalid unit id' });
+    const unit = await Unit.findById(normalizedUnitId);
     if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+    const normalizedType = mapChargeType(type);
 
     const charge = await Charge.create({
       unit: unit._id,
       description,
       amount,
-      type,
+      type: normalizedType,
       dueDate,
       issuedBy: req.user.id
     });
@@ -26,7 +41,7 @@ exports.createCharge = async (req, res) => {
       await Notification.create({
         recipients: unit.residents,
         title: 'New charge applied',
-        message: `A new ${type} charge of ${amount} was applied to unit ${unit.number}.`,
+        message: `A new ${normalizedType} charge of ${amount} was applied to unit ${unit.number}.`,
       });
     }
     res.status(201).json(charge);
@@ -40,11 +55,19 @@ exports.getCharges = async (req, res) => {
   try {
     const { unitId } = req.query;
     const query = {};
-    if (unitId) query.unit = unitId;
-    else if (req.user.role === 'user') query.unit = req.user.unit;
+    const normalizedUnit = normalizeObjectId(unitId);
 
+    if (unitId && !normalizedUnit) return res.status(400).json({ error: 'Invalid unit id' });
+
+    if (normalizedUnit) query.unit = normalizedUnit;
+    else if (req.user.role === 'user') {
+      const userUnit = normalizeObjectId(req.user.unit);
+      if (!userUnit) return res.status(400).json({ error: 'Unit missing from your profile' });
+      query.unit = userUnit;
+    }
     const charges = await Charge.find(query).sort({ createdAt: -1 }).populate('unit issuedBy', 'number name email');
-    res.json(charges);
+    res.set('Cache-Control', 'no-store');
+    res.status(200).json(charges);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -52,12 +75,15 @@ exports.getCharges = async (req, res) => {
 
 exports.getChargesByUnit = async (req, res) => {
   try {
-    const unitId = req.params.unitId;
-    if (req.user.role === 'user' && req.user.unit?.toString() !== unitId) {
+    const unitId = normalizeObjectId(req.params.unitId);
+    if (!unitId) return res.status(400).json({ error: 'Invalid unit id' });
+
+    if (req.user.role === 'user' && normalizeObjectId(req.user.unit)?.toString() !== unitId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const charges = await Charge.find({ unit: unitId }).populate('unit issuedBy', 'number name email');
-    res.json(charges);
+    res.set('Cache-Control', 'no-store');
+    res.status(200).json(charges);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

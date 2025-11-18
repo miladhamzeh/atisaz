@@ -14,16 +14,43 @@ exports.createUnit = async (req, res) => {
 
 exports.getUnits = async (req, res) => {
   try {
-    const units = await Unit.find().populate('residents', 'name email role');
-    res.json(units);
+    const { search, number, name } = req.query;
+    const regexes = [];
+    if (search) regexes.push(new RegExp(search, 'i'));
+    if (number) regexes.push(new RegExp(number, 'i'));
+    if (name) regexes.push(new RegExp(name, 'i'));
+
+    const baseQuery = {};
+    if (number && !search) {
+      baseQuery.number = new RegExp(number, 'i');
+    }
+
+    const units = await Unit.find(baseQuery)
+      .populate('occupants', 'name email role unit')
+      .sort({ number: 1 })
+      .lean();
+
+    const filtered = regexes.length
+      ? units.filter((u) => {
+          return regexes.every((rx) =>
+            rx.test(u.number || '') ||
+            rx.test(u.building || '') ||
+            rx.test(u.floor || '') ||
+            (u.occupants || []).some((r) => rx.test(r.name || '') || rx.test(r.email || ''))
+          );
+        })
+      : units;
+
+    res.json(filtered);
   } catch (err) {
+    console.error('getUnits error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
 exports.getUnitById = async (req, res) => {
   try {
-    const unit = await Unit.findById(req.params.id).populate('residents', '-password');
+    const unit = await Unit.findById(req.params.id).populate('occupants', '-password');
     if (!unit) return res.status(404).json({ error: 'Unit not found' });
     if (req.user.role !== 'secretary' && req.user.role !== 'admin' && (!req.user.unit || req.user.unit.toString() !== unit._id.toString())) {
       return res.status(403).json({ error: 'Forbidden' });
