@@ -52,15 +52,33 @@ app.use((req, res, next) => {
 });
 
 // --- CORS allowlist ---
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000')
+const defaultDevOrigins = [
+  'http://localhost:3000',
+  'https://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://127.0.0.1:3000',
+];
+
+const envOrigins = (process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || '')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
+
+  const hasExplicitOrigins = envOrigins.length > 0;
+  const hasWildcard = envOrigins.includes('*');
+  const corsLockedDown = hasExplicitOrigins && !hasWildcard;
+  const allowedOrigins = corsLockedDown ? envOrigins : defaultDevOrigins;
+
+  if (!corsLockedDown && !hasWildcard) {
+    console.warn('⚠️  ALLOWED_ORIGINS is not configured; temporarily allowing all origins. Set ALLOWED_ORIGINS to lock down CORS.');
+  }
+
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true); // allow server-to-server or curl
+      if (!corsLockedDown || hasWildcard) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
